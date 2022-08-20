@@ -43,12 +43,19 @@ function  getEndingLink(){
   }
 
 const client = createWSClient({
-  url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3000',
+  url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3011',
 });
 
 
+
+
+
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`; // SSR should use vercel url
-  return `http://localhost:${process.env.PORT ?? 3000}`; // dev SSR should use localhost
+  // return `http://localhost:${process.env.PORT ?? 3000}`; // dev SSR should use localhost
+
+  return wsLink({
+    client,
+  });
 }
 
 export default withTRPC<AppRouter>({
@@ -59,12 +66,19 @@ export default withTRPC<AppRouter>({
      */
 
     return {
-      links: [],
+      links: [getEndingLink()],
       transformer: superjson,
       /**
        * @link https://react-query.tanstack.com/reference/QueryClient
        */
       // queryClientConfig: { defaultOptions: { queries: { staleTime: 60 } } },
+      headers() {
+        if(ctx?.req){
+          return {...ctx.req.headers};
+        }
+        return {};
+        },
+      
     };
   },
   /**

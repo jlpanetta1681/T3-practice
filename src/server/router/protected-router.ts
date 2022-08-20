@@ -1,20 +1,22 @@
-import * as trpc from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 import { createRouter } from "./context";
 
-/**
- * Creates a tRPC router that asserts all queries and mutations are from an authorized user. Will throw an unauthorized error if a user is not signed in.
- */
-export function createProtectedRouter() {
-  return createRouter().middleware(({ ctx, next }) => {
-    if (!ctx.session || !ctx.session.user) {
-      throw new trpc.TRPCError({ code: "UNAUTHORIZED" });
+export const authRouter = createRouter()
+  .query("getSession", {
+    resolve({ ctx }) {
+      return ctx.session;
+    },
+  })
+  .middleware(async ({ ctx, next }) => {
+    // Any queries or mutations after this middleware will
+    // raise an error unless there is a current session
+    if (!ctx.session) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
     }
-    return next({
-      ctx: {
-        ...ctx,
-        // infers that `session` is non-nullable to downstream resolvers
-        session: { ...ctx.session, user: ctx.session.user },
-      },
-    });
+    return next();
+  })
+  .query("getSecretMessage", {
+    async resolve({ ctx }) {
+      return "You are logged in and can see this secret message!";
+    },
   });
-}

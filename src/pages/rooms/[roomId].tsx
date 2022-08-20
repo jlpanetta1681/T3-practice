@@ -1,0 +1,84 @@
+import { Session } from "next-auth";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter } from "next/router";
+import { useState } from "react";
+import { message } from "../../constants/schema";
+import { trpc } from "../../utils/trpc";
+
+
+function RoomPage() {
+    const { query } = useRouter();
+    const roomId = query.roomId as string;
+    const { data: session } = useSession();
+  
+    const [message, setMessage] = useState("");
+    const [messages, setMessages] = useState<message[]>([]);
+  
+    const { mutateAsync: sendMessageMutation } = trpc.useMutation([
+      "room.send-message",
+    ]);
+  
+    trpc.useSubscription(
+      [
+        "room.onSendMessage",
+        {
+          roomId,
+        },
+      ],
+      {
+        onNext: (message) => {
+          setMessages((m) => {
+            return [...m, message];
+          });
+        },
+      }
+    );
+  
+    if (!session) {
+      return (
+        <div>
+          <button onClick={() => signIn()}>Login</button>
+        </div>
+      );
+    }
+  
+    return (
+      <div className="flex flex-col h-screen">
+        <div className="flex-1">
+          <ul className="flex flex-col p-4">
+            {messages.map((m) => {
+              return <MessageItem key={m.id} message={m} session={session} />;
+            })}
+          </ul>
+        </div>
+  
+        <form
+          className="flex"
+          onSubmit={(e) => {
+            console.log("submit");
+            e.preventDefault();
+  
+            sendMessageMutation({
+              roomId,
+              message,
+            });
+  
+            setMessage("");
+          }}
+        >
+          <textarea
+            className="black p-2.5 w-full text-gray-700 bg-gray-50 rounded-md border border-gray-700"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="What do you want to say"
+          />
+  
+          <button className="flex-1 text-white bg-gray-900 p-2.5" type="submit">
+            Send message
+          </button>
+        </form>
+      </div>
+    );
+  }
+  
+  export default RoomPage;
